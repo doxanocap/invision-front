@@ -1,0 +1,179 @@
+bpmn-diagram
+title ШАГ 1 + 2 + ФИНАЛ: Full Pipeline
+colorMode outline
+
+Candidate [color: blue] {
+  Start [type: event, icon: play]
+  Fill application form [type: activity, icon: edit]
+  Submit form [type: activity, icon: send]
+  Receive confirmation [type: event, icon: check-circle]
+  Application submitted [type: event, icon: flag]
+  Receive case question [type: event, icon: mail]
+  Answer case question [type: activity, icon: edit]
+  Submit case answer [type: activity, icon: send]
+  Record video response [type: activity, icon: video]
+  Submit video [type: activity, icon: upload]
+  Receive final decision [type: event, icon: mail]
+  Accepted [type: event, icon: check-circle]
+  Rejected [type: event, icon: x-circle]
+}
+
+Backend System [color: purple] {
+  API {
+    Receive request [type: event, icon: download]
+    Save raw data to DB [type: activity, icon: database]
+    Return 200 OK [type: activity, icon: check]
+    Trigger async validation [type: activity, icon: zap]
+    Request processed [type: event, icon: server]
+    Receive case answer [type: event, icon: download]
+    Store case answer [type: activity, icon: database]
+    Trigger DRIVE analysis [type: activity, icon: zap]
+    Receive video [type: event, icon: download]
+    Run Whisper STT [type: activity, icon: mic]
+    Store transcript [type: activity, icon: database]
+    Trigger authenticity delta [type: activity, icon: zap]
+    Compute authenticity delta [type: activity, icon: cpu]
+    Save delta result [type: activity, icon: database]
+    Assemble final card [type: activity, icon: layout]
+    Final card ready [type: event, icon: check-circle]
+    Send decision to candidate [type: activity, icon: send]
+  }
+  Validation Worker {
+    Start validation [type: event, icon: play]
+    Validate IELTS PDF [type: activity, icon: file-text]
+    Validate ENT PDF [type: activity, icon: file-text]
+    Validate personal data [type: activity, icon: user-check]
+    Determine status [type: gateway, icon: git-branch]
+    Save status to DB [type: activity, icon: database]
+    Validation complete [type: event, icon: check-circle]
+    Auto reject FAIL [type: activity, icon: x-circle]
+    Flag for manual review [type: activity, icon: alert-triangle]
+    Send case question [type: activity, icon: send]
+  }
+  DRIVE Agents {
+    Start agents [type: event, icon: play]
+    Agent D Disciplined Resilience [type: activity, icon: shield]
+    Agent R Responsible Innovation [type: activity, icon: zap]
+    Agent I Insightful Vision [type: activity, icon: eye]
+    Agent V Values Driven Leadership [type: activity, icon: heart]
+    Agent E Entrepreneurial Execution [type: activity, icon: trending-up]
+    Collect JSON responses [type: activity, icon: layers]
+    Count strong arguments [type: activity, icon: hash]
+    Flag empty dimensions [type: activity, icon: alert-triangle]
+    Generate evidence card [type: activity, icon: file-text]
+    DRIVE analysis complete [type: event, icon: check-circle]
+  }
+}
+
+HR Dashboard [color: green] {
+  Load candidates [type: activity, icon: refresh-cw]
+  Display candidate table [type: activity, icon: table]
+  Review REVIEW candidates [type: activity, icon: eye]
+  View evidence card [type: activity, icon: file-text]
+  Operator 1 scores [type: activity, icon: user]
+  Operator 2 scores [type: activity, icon: user]
+  Scores divergence check [type: gateway, icon: git-branch]
+  Flag for discussion [type: activity, icon: alert-triangle]
+  Normalize scores [type: activity, icon: sliders]
+  View final card [type: activity, icon: layout]
+  Committee decision [type: gateway, icon: git-branch]
+  Add to shortlist [type: activity, icon: star]
+  Mark for discussion [type: activity, icon: message-circle]
+  Confirm rejection [type: activity, icon: x-circle]
+  Shortlist complete [type: event, icon: flag]
+}
+
+Start > Fill application form
+Fill application form > Submit form
+Submit form --> Receive request : Form data + PDFs
+Submit form > Receive confirmation
+Receive confirmation > Application submitted
+
+Receive request > Save raw data to DB
+Save raw data to DB > Return 200 OK
+Return 200 OK --> Receive confirmation : Confirmation
+Return 200 OK > Trigger async validation
+Trigger async validation > Request processed
+Trigger async validation --> Start validation : Async job
+
+Start validation > Validate IELTS PDF
+Validate IELTS PDF > Validate ENT PDF
+Validate ENT PDF > Validate personal data
+Validate personal data > Determine status
+Determine status > Auto reject FAIL : FAIL
+Determine status > Flag for manual review : REVIEW
+Determine status > Send case question : PASS
+Auto reject FAIL --> Confirm rejection : Auto
+Flag for manual review --> Review REVIEW candidates : Manual check
+Review REVIEW candidates > Send case question
+Save status to DB > Validation complete
+Determine status > Save status to DB
+
+Load candidates --> Save status to DB : Query DB
+Load candidates > Display candidate table
+Display candidate table > Review REVIEW candidates
+
+Send case question --> Receive case question : Case question
+Receive case question > Answer case question
+Answer case question > Submit case answer
+Submit case answer --> Receive case answer : Case answer text
+
+Receive case answer > Store case answer
+Store case answer > Trigger DRIVE analysis
+Trigger DRIVE analysis --> Start agents : Async
+
+Start agents > Agent D Disciplined Resilience
+Start agents > Agent R Responsible Innovation
+Start agents > Agent I Insightful Vision
+Start agents > Agent V Values Driven Leadership
+Start agents > Agent E Entrepreneurial Execution
+
+Agent D Disciplined Resilience --> Collect JSON responses : JSON
+Agent R Responsible Innovation --> Collect JSON responses : JSON
+Agent I Insightful Vision --> Collect JSON responses : JSON
+Agent V Values Driven Leadership --> Collect JSON responses : JSON
+Agent E Entrepreneurial Execution --> Collect JSON responses : JSON
+
+Collect JSON responses > Count strong arguments
+Count strong arguments > Flag empty dimensions
+Flag empty dimensions > Generate evidence card
+Generate evidence card > DRIVE analysis complete
+DRIVE analysis complete --> View evidence card : Evidence card
+
+View evidence card > Operator 1 scores
+View evidence card > Operator 2 scores
+Operator 1 scores --> Scores divergence check : Score 1-5
+Operator 2 scores --> Scores divergence check : Score 1-5
+Scores divergence check > Flag for discussion : Divergence > 2
+Scores divergence check > Normalize scores : Aligned
+Flag for discussion > Normalize scores
+
+Application submitted > Record video response
+Record video response > Submit video
+Submit video --> Receive video : Video file
+
+Receive video > Run Whisper STT
+Run Whisper STT > Store transcript
+Store transcript > Trigger authenticity delta
+Trigger authenticity delta > Compute authenticity delta
+Compute authenticity delta > Save delta result
+
+Save delta result --> Assemble final card : Delta score
+Normalize scores --> Assemble final card : Operator scores
+DRIVE analysis complete --> Assemble final card : Evidence
+Save status to DB --> Assemble final card : IELTS / ENT scores
+Assemble final card > Final card ready
+Final card ready --> View final card : Final card
+
+View final card > Committee decision
+Committee decision > Add to shortlist : Shortlist
+Committee decision > Mark for discussion : Discuss
+Committee decision > Confirm rejection : Reject
+Add to shortlist > Shortlist complete
+Mark for discussion > Shortlist complete
+Confirm rejection > Shortlist complete
+
+Shortlist complete --> Send decision to candidate : Decision
+Send decision to candidate --> Receive final decision : Email
+Receive final decision > Accepted : Shortlisted
+Receive final decision > Rejected : Rejected
