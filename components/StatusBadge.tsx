@@ -13,11 +13,11 @@ const PIPELINE_MAP: Record<string, { label: string; textClass: string; bgClass: 
   case_sent: { label: "Кейс отправлен", textClass: "text-blue-700", bgClass: "bg-blue-50", dotClass: "bg-blue-500" },
   case_answered: { label: "Кейс получен", textClass: "text-indigo-700", bgClass: "bg-indigo-50", dotClass: "bg-indigo-500" },
   committee_review: { label: "На проверке", textClass: "text-amber-700", bgClass: "bg-amber-50", dotClass: "bg-amber-500" },
-  decision_sent: { label: "Решение отправлено", textClass: "text-[#84CC16]", bgClass: "bg-[#84CC16]/10", dotClass: "bg-[#84CC16]" },
+  decision_sent: { label: "Решение отправлено", textClass: "text-[#A7E635]", bgClass: "bg-[#A7E635]/10", dotClass: "bg-[#A7E635]" },
 };
 
 const DECISION_MAP: Record<string, { label: string; textClass: string; bgClass: string; dotClass: string }> = {
-  shortlisted: { label: "Шортлист", textClass: "text-[#84CC16]", bgClass: "bg-[#84CC16]/10", dotClass: "bg-[#84CC16]" },
+  shortlisted: { label: "Шортлист", textClass: "text-[#A7E635]", bgClass: "bg-[#A7E635]/10", dotClass: "bg-[#A7E635]" },
   discussion: { label: "Обсуждение", textClass: "text-orange-700", bgClass: "bg-orange-50", dotClass: "bg-orange-500" },
   rejected: { label: "Отклонён", textClass: "text-red-700", bgClass: "bg-red-50", dotClass: "bg-red-500" },
 };

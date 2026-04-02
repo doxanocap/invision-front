@@ -20,8 +20,7 @@ export function CandidateDecisionPanel({ id, pipelineStage, decisionStatus }: Ca
     try {
       setIsLoading(true);
       setError(null);
-      const token = localStorage.getItem("access_token") || undefined;
-      await admissionsApi.setDecision(id, decision, token);
+      await admissionsApi.setDecision(id, decision);
       router.refresh();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err));
@@ -34,8 +33,7 @@ export function CandidateDecisionPanel({ id, pipelineStage, decisionStatus }: Ca
     try {
       setIsLoading(true);
       setError(null);
-      const token = localStorage.getItem("access_token") || undefined;
-      await admissionsApi.sendDecision(id, token);
+      await admissionsApi.sendDecision(id);
       router.refresh();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err));

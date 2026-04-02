@@ -1,11 +1,18 @@
 @import "tailwindcss";
 
 @theme {
-  --color-invision-light: #F8F9F0;
-  --color-invision-accent: #84CC16;
+  --color-invision-light: #DBE6D8;
+  --color-invision-accent: #A7E635;
+  --color-invision-focus: #EEF8D4;
 }
 
 body {
   background-color: var(--color-invision-light);
   color: #111827; /* Tailwind gray-900 */
+}
+
+/* Prevent centered layout shifting when vertical scrollbar appears/disappears */
+html {
+  overflow-y: scroll;
+  scrollbar-gutter: stable;
 }

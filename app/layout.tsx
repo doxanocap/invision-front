@@ -20,7 +20,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={inter.variable}>
-      <body className="flex min-h-screen font-sans antialiased bg-[#F8F9F0] text-slate-900">
+      <body className="flex min-h-screen font-sans antialiased bg-[#DBE6D8] text-slate-900">
         <Sidebar />
         <main className="flex-1 overflow-auto">
           {children}

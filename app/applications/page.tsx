@@ -2,13 +2,12 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
-import Link from "next/link";
 import { ApplicationsTable } from "@/components/ApplicationsTable";
 import { Pagination } from "@/components/Pagination";
-import { getAccessToken } from "@/lib/auth";
+import { clearTokens, getAccessToken } from "@/lib/auth";
 import { admissionsApi } from "@/lib/api";
 import { API_BASE_URL } from "@/lib/config";
-import type { ApplicationListResponse, FormStatus, PipelineStage, DecisionStatus } from "@/types/api";
+import type { ApplicationListResponse, ApplicationsQuery, DecisionStatus, FormStatus, PipelineStage } from "@/types/api";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -55,8 +54,8 @@ export default function ApplicationsPage() {
   const [isBackendOffline, setIsBackendOffline] = useState(false);
 
   useEffect(() => {
-    // Health check on mount - directly to backend
-    fetch(`${API_BASE_URL}/health`)
+    // Health check on mount - hit backend directly
+    fetch(`${API_BASE_URL}/health`, { cache: "no-store" })
       .then(res => {
         if (!res.ok) setIsBackendOffline(true);
       })
@@ -71,38 +70,34 @@ export default function ApplicationsPage() {
     setIsLoading(true);
     setError(null);
 
-    const query = new URLSearchParams({ limit: String(limit), offset: String(offset) });
-    if (search) query.set("search", search);
-    if (formFilter !== "all") query.set("formStatus", formFilter);
-    if (pipelineFilter !== "all") query.set("pipelineStage", pipelineFilter);
-    if (decisionFilter !== "all") query.set("decisionStatus", decisionFilter);
-
     const token = getAccessToken();
     if (!token) {
       setIsLoading(false);
-      setData(null);
+      router.replace("/login");
       return;
     }
 
-    const queryParams: any = {};
+    const queryParams: ApplicationsQuery = {};
     if (search) queryParams.search = search;
-    if (formFilter !== "all") queryParams.formStatus = formFilter;
-    if (pipelineFilter !== "all") queryParams.pipelineStage = pipelineFilter;
-    if (decisionFilter !== "all") queryParams.decisionStatus = decisionFilter;
+    if (formFilter !== "all") queryParams.formStatus = formFilter as FormStatus;
+    if (pipelineFilter !== "all") queryParams.pipelineStage = pipelineFilter as PipelineStage;
+    if (decisionFilter !== "all") queryParams.decisionStatus = decisionFilter as DecisionStatus;
     queryParams.limit = limit;
     queryParams.offset = offset;
 
-    admissionsApi.getApplications(queryParams, token)
+    admissionsApi.getApplications(queryParams)
       .then((res) => setData(res))
       .catch((err) => {
         if (err.status === 401) {
+          clearTokens();
           setData(null);
+          router.replace("/login");
         } else {
           setError(err.message);
         }
       })
       .finally(() => setIsLoading(false));
-  }, [search, formFilter, pipelineFilter, decisionFilter, limit, offset]);
+  }, [search, formFilter, pipelineFilter, decisionFilter, limit, offset, router]);
 
   useEffect(() => {
     loadData();
@@ -143,9 +138,6 @@ export default function ApplicationsPage() {
     (decisionFilter !== "all" ? 1 : 0) +
     (search ? 1 : 0);
 
-  const currentPage = Math.floor(offset / limit) + 1;
-  const totalPages = data ? Math.max(1, Math.ceil(data.total / limit)) : 1;
-
   return (
     <div className="p-8 max-w-[1600px] mx-auto min-h-screen">
       {/* Page Header */}
@@ -175,7 +167,7 @@ export default function ApplicationsPage() {
             </svg>
             <input
               type="text"
-              className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-gray-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#84CC16]/50 focus:border-[#84CC16] transition-all"
+              className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-gray-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#A7E635]/50 focus:border-[#A7E635] transition-all"
               placeholder="Search by candidate name or handle"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
@@ -188,7 +180,7 @@ export default function ApplicationsPage() {
         <div className="flex-none min-w-[150px]">
           <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Form:</label>
           <select
-            className="w-full px-4 py-2.5 bg-slate-50 border border-gray-200 rounded-lg text-sm text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-[#84CC16]/50 cursor-pointer"
+            className="w-full px-4 py-2.5 bg-slate-50 border border-gray-200 rounded-lg text-sm text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-[#A7E635]/50 cursor-pointer"
             value={formFilter}
             onChange={(e) => updateURL({ formStatus: e.target.value })}
           >
@@ -201,7 +193,7 @@ export default function ApplicationsPage() {
         <div className="flex-none min-w-[150px]">
           <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Pipeline:</label>
           <select
-            className="w-full px-4 py-2.5 bg-slate-50 border border-gray-200 rounded-lg text-sm text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-[#84CC16]/50 cursor-pointer"
+            className="w-full px-4 py-2.5 bg-slate-50 border border-gray-200 rounded-lg text-sm text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-[#A7E635]/50 cursor-pointer"
             value={pipelineFilter}
             onChange={(e) => updateURL({ pipelineStage: e.target.value })}
           >
@@ -214,7 +206,7 @@ export default function ApplicationsPage() {
         <div className="flex-none min-w-[150px]">
           <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Decision:</label>
           <select
-            className="w-full px-4 py-2.5 bg-slate-50 border border-gray-200 rounded-lg text-sm text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-[#84CC16]/50 cursor-pointer"
+            className="w-full px-4 py-2.5 bg-slate-50 border border-gray-200 rounded-lg text-sm text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-[#A7E635]/50 cursor-pointer"
             value={decisionFilter}
             onChange={(e) => updateURL({ decisionStatus: e.target.value })}
           >
@@ -232,17 +224,6 @@ export default function ApplicationsPage() {
           />
         </div>
 
-        <div className="flex flex-col flex-none min-w-[120px] justify-between">
-          <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">AI Processed:</label>
-          <div className="flex items-center gap-2 mt-auto pb-1.5 pt-1">
-            <button className="flex items-center gap-1.5 px-3 py-1 bg-[#84CC16]/10 text-[#84CC16] rounded-md text-xs font-bold font-semibold border border-[#84CC16]/20">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg> Yes
-            </button>
-            <button className="flex items-center gap-1.5 px-3 py-1 bg-slate-100 text-slate-400 rounded-md text-xs font-bold border border-slate-200">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg> No
-            </button>
-          </div>
-        </div>
 
         {/* Clear Filters */}
         {activeFilters > 0 && (
@@ -258,14 +239,7 @@ export default function ApplicationsPage() {
       </div>
 
       {/* Main Table */}
-      {!getAccessToken() ? (
-        <div className="flex flex-col items-center justify-center py-24 bg-white rounded-xl shadow-sm border border-gray-200">
-          <p className="text-gray-500 mb-4">Нужно войти</p>
-          <Link href="/login" className="bg-[#84CC16] hover:bg-[#65a30d] text-white px-6 py-2 rounded-lg font-medium transition-colors">
-            Войти
-          </Link>
-        </div>
-      ) : isBackendOffline ? (
+      {isBackendOffline ? (
         <div className="flex items-center justify-center py-24">
           <div className="mb-4 p-4 bg-red-100 text-red-800 border border-red-200 rounded-lg text-sm text-center">
             Backend offline. Please start the backend server.
@@ -273,7 +247,7 @@ export default function ApplicationsPage() {
         </div>
       ) : isLoading ? (
         <div className="flex items-center justify-center p-20 text-slate-400">
-           <svg className="animate-spin -ml-1 mr-3 h-8 w-8 text-[#84CC16]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+          <svg className="animate-spin -ml-1 mr-3 h-8 w-8 text-[#A7E635]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
            <span className="font-medium text-lg">Loading applicants...</span>
         </div>
       ) : error ? (

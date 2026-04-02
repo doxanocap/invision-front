@@ -1,34 +1,60 @@
-const ASCII_REGEX = /^[\x20-\x7E]*$/;
+const ACCESS_TOKEN_KEY = "access_token";
+const REFRESH_TOKEN_KEY = "refresh_token";
 
-export function getAccessToken(): string | null {
-  if (typeof window === "undefined") return null;
-  const raw = localStorage.getItem("access_token");
-  if (!raw) return process.env.NEXT_PUBLIC_DEFAULT_JWT || null;
-
+function sanitizeToken(raw: string | null): string | null {
+  if (!raw) return null;
   let token = raw.trim();
-  // Remove wrapping quotes if any
-  if ((token.startsWith('"') && token.endsWith('"')) || (token.startsWith("'") && token.endsWith("'"))) {
+
+  if (
+    (token.startsWith('"') && token.endsWith('"')) ||
+    (token.startsWith("'") && token.endsWith("'"))
+  ) {
     token = token.slice(1, -1).trim();
   }
 
-  // Ensure it's purely ascii
-  if (!ASCII_REGEX.test(token)) {
-    clearAccessToken();
-    return null;
+  if (token.toLowerCase().startsWith("bearer ")) {
+    token = token.slice("bearer ".length).trim();
   }
+
+  if (!token) return null;
+
+  // Prevent invalid header values (newlines / non-ascii control chars)
+  for (let i = 0; i < token.length; i++) {
+    const code = token.charCodeAt(i);
+    if (code < 0x20 || code > 0x7e) return null;
+  }
+  if (token.includes("\n") || token.includes("\r")) return null;
 
   return token;
 }
 
-export function setAccessToken(token: string) {
-  if (typeof window === "undefined") return;
-  const safeToken = token.replace(/[^\x20-\x7E]/g, '').trim();
-  localStorage.setItem("access_token", safeToken);
-  document.cookie = `access_token=${safeToken}; path=/; max-age=86400`; // 1 day
+export function getAccessToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return sanitizeToken(localStorage.getItem(ACCESS_TOKEN_KEY));
 }
 
-export function clearAccessToken() {
+export function getRefreshToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return sanitizeToken(localStorage.getItem(REFRESH_TOKEN_KEY));
+}
+
+export function setTokens(access: string, refresh: string): void {
   if (typeof window === "undefined") return;
-  localStorage.removeItem("access_token");
-  document.cookie = 'access_token=; path=/; max-age=0';
+  const safeAccess = sanitizeToken(access);
+  const safeRefresh = sanitizeToken(refresh);
+  if (!safeAccess || !safeRefresh) return;
+  localStorage.setItem(ACCESS_TOKEN_KEY, safeAccess);
+  localStorage.setItem(REFRESH_TOKEN_KEY, safeRefresh);
+}
+
+export function clearTokens(): void {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem(ACCESS_TOKEN_KEY);
+  localStorage.removeItem(REFRESH_TOKEN_KEY);
+}
+
+export function getAuthHeader(): HeadersInit {
+  const token = getAccessToken();
+  if (!token) return {};
+  return { Authorization: `Bearer ${token}` };
 }
