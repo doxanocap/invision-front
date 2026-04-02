@@ -30,7 +30,6 @@ export function FilterDropdown({ label, value, options, onChange }: FilterDropdo
           minWidth: 90,
         }}
       >
-        <option value="all">{label}</option>
         {options.map((o) => (
           <option key={o.value} value={o.value}>
             {o.label}

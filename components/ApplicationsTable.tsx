@@ -1,11 +1,12 @@
 "use client";
 
+import { useMemo } from "react";
 import Link from "next/link";
-import type { ApplicantDetail, ApplicationStatus } from "@/types/api";
-import { StatusBadge, type StatusVariant } from "./StatusBadge";
+import type { ApplicationSummary, ApplicationFile, DecisionStatus } from "@/types/api";
+import { StatusBadge } from "./StatusBadge";
 
 interface ApplicationsTableProps {
-  rows: ApplicantDetail[];
+  rows: ApplicationSummary[];
 }
 
 function Avatar({ name }: { name: string }) {
@@ -16,246 +17,148 @@ function Avatar({ name }: { name: string }) {
     .join("")
     .toUpperCase();
 
-  const colors = [
-    "linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)",
-    "linear-gradient(135deg, #0ea5e9 0%, #38bdf8 100%)",
-    "linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%)",
-    "linear-gradient(135deg, #10b981 0%, #34d399 100%)",
-    "linear-gradient(135deg, #ef4444 0%, #f87171 100%)",
-    "linear-gradient(135deg, #ec4899 0%, #f472b6 100%)",
-  ];
-  const idx = (name.charCodeAt(0) || 0) % colors.length;
-
   return (
-    <div
-      style={{
-        width: 32,
-        height: 32,
-        borderRadius: "50%",
-        background: colors[idx],
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        fontSize: 12,
-        fontWeight: 600,
-        color: "#fff",
-        flexShrink: 0,
-      }}
-    >
-      {initials}
+    <div className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center text-xs font-semibold text-slate-600 shrink-0 border border-slate-200">
+      {initials || "?"}
     </div>
   );
 }
 
-function DocumentStatusCell({ raw }: { raw: ApplicantDetail }) {
-  let label = "All Docs Received";
-  let ok = true;
+function PriorityBadge({ status }: { status?: DecisionStatus }) {
+  if (status === "shortlisted") return <span className="bg-red-100 text-red-700 font-medium px-2.5 py-0.5 rounded-full text-xs">High</span>;
+  if (status === "discussion") return <span className="bg-orange-100 text-orange-700 font-medium px-2.5 py-0.5 rounded-full text-xs">Medium</span>;
+  if (status === "rejected") return <span className="bg-slate-100 text-slate-600 font-medium px-2.5 py-0.5 rounded-full text-xs">Low</span>;
+  return <span className="bg-slate-50 text-slate-500 font-medium px-2.5 py-0.5 rounded-full text-xs">Unassigned</span>;
+}
 
-  if (!raw.id_document_file_url) {
-    label = "Missing Identity Doc";
-    ok = false;
-  } else if (!raw.english_results_file_url) {
-    label = "Missing English Result";
-    ok = false;
-  } else if (!raw.certificate_file_url) {
-    label = "Missing Certificate";
-    ok = false;
-  }
-
+function AiScore({ score }: { score?: number | null }) {
+  if (score === null || score === undefined) return <span className="text-slate-300 font-medium">--</span>;
+  let color = "text-red-500";
+  if (score >= 80) color = "text-[#84CC16]";
+  else if (score >= 60) color = "text-amber-500";
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}>
-      {ok ? (
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00C853" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-          <polyline points="22 4 12 14.01 9 11.01" />
-        </svg>
-      ) : (
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="12" cy="12" r="10" />
-          <line x1="12" y1="8" x2="12" y2="12" />
-          <line x1="12" y1="16" x2="12.01" y2="16" />
-        </svg>
-      )}
-      <span
-        style={{
-          fontSize: 13,
-          color: ok ? "var(--text-primary)" : "#F59E0B",
-          maxWidth: 140,
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-        }}
-      >
-        {label}
-      </span>
-    </div>
+    <span className={`font-bold text-sm ${color}`}>
+      {score}<span className="text-slate-400 font-medium text-xs">/100</span>
+    </span>
   );
 }
 
-const COL_STYLES: React.CSSProperties = {
-  padding: "14px 16px",
-  fontSize: 13,
-  color: "var(--text-primary)",
-  verticalAlign: "middle",
-};
+function MotivationScore({ val }: { val?: number | null }) {
+  if (val === null || val === undefined) return <span className="text-slate-300 font-medium">--</span>;
+  return (
+    <span className="font-bold text-sm text-slate-700">
+      {val.toFixed(1)}<span className="text-slate-400 font-medium text-xs">/5.0</span>
+    </span>
+  );
+}
 
-const HEADER_STYLES: React.CSSProperties = {
-  padding: "10px 16px",
-  fontSize: 11,
-  fontWeight: 600,
-  color: "var(--text-muted)",
-  textTransform: "uppercase",
-  letterSpacing: "0.06em",
-  textAlign: "left",
-  whiteSpace: "nowrap",
-  borderBottom: "1px solid var(--border)",
-  background: "var(--bg-secondary)",
-};
+function DocStatus() {
+  const Badge = ({ text, type }: { text: string; type: "complete" | "warning" | "partial" }) => {
+    let colorClass = "text-orange-500";
+    let icon = (
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+      </svg>
+    );
+
+    if (type === "complete") {
+      colorClass = "text-green-600";
+      icon = (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>
+      );
+    } else if (type === "partial") {
+      colorClass = "text-amber-500";
+      icon = (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline>
+        </svg>
+      );
+    }
+
+    return (
+      <div className={`flex items-center gap-1.5 text-xs font-semibold ${colorClass}`}>
+        {icon} <span>{text}</span>
+      </div>
+    );
+  };
+
+  return <Badge text="No Documents" type="warning" />;
+}
 
 export function ApplicationsTable({ rows }: ApplicationsTableProps) {
-  function getStatusDisplay(status: ApplicationStatus): { label: string; variant: StatusVariant } {
-    switch (status) {
-      case "new":
-        return { label: "New", variant: "incomplete" };
-      case "in_review":
-        return { label: "In Review", variant: "review" };
-      case "shortlisted":
-        return { label: "Shortlisted", variant: "complete" };
-      case "accepted":
-        return { label: "Accepted", variant: "complete" };
-      case "rejected":
-        return { label: "Rejected", variant: "fail" };
-      default:
-        return { label: status, variant: "incomplete" };
-    }
-  }
+  // Sort rows to bring newest to top based on submitted_at, or just ID if missing
+  const recentFirst = useMemo(() => {
+    return [...rows].sort((a, b) => b.id - a.id);
+  }, [rows]);
 
   return (
-    <div style={{ overflowX: "auto" }}>
-      <table
-        style={{
-          width: "100%",
-          borderCollapse: "collapse",
-          tableLayout: "fixed",
-        }}
-      >
-        <colgroup>
-          <col style={{ width: 220 }} />
-          <col style={{ width: 140 }} />
-          <col style={{ width: 100 }} />
-          <col style={{ width: 110 }} />
-          <col style={{ width: 100 }} />
-          <col style={{ width: 180 }} />
-          <col style={{ width: 110 }} />
-          <col style={{ width: 160 }} />
-        </colgroup>
+    <div className="w-full overflow-x-auto bg-white rounded-xl shadow-sm border border-gray-200">
+      <table className="w-full text-left border-collapse min-w-[1000px]">
         <thead>
-          <tr>
-            <th style={HEADER_STYLES}>Candidate Name</th>
-            <th style={HEADER_STYLES}>Status</th>
-            <th style={{ ...HEADER_STYLES, textAlign: "center" }}>AI Score</th>
-            <th style={{ ...HEADER_STYLES, textAlign: "center" }}>Motivation</th>
-            <th style={HEADER_STYLES}>Priority</th>
-            <th style={HEADER_STYLES}>Document Status</th>
-            <th style={HEADER_STYLES}>Date</th>
-            <th style={{ ...HEADER_STYLES, textAlign: "center" }}>Actions</th>
+          <tr className="border-b border-gray-200 bg-gray-50/50 text-xs text-gray-500 uppercase font-bold tracking-wider">
+            <th className="py-3 px-5 whitespace-nowrap">Candidate Name</th>
+            <th className="py-3 px-5 whitespace-nowrap">Status</th>
+            <th className="py-3 px-5 text-center whitespace-nowrap">AI Score</th>
+            <th className="py-3 px-5 text-center whitespace-nowrap">Motivation</th>
+            <th className="py-3 px-5 whitespace-nowrap">Priority</th>
+            <th className="py-3 px-5 whitespace-nowrap">Document Status</th>
+            <th className="py-3 px-5 whitespace-nowrap">Date</th>
+            <th className="py-3 px-5 text-center whitespace-nowrap">Actions</th>
           </tr>
         </thead>
-        <tbody>
-          {rows.map((row, i) => {
+        <tbody className="divide-y divide-gray-100">
+          {recentFirst.map((row) => {
+            const rowHref = `/candidates/${row.id}`;
+            const dateStr = row.submitted_at
+              ? new Date(row.submitted_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+              : "N/A";
             const displayName = row.full_name || `${row.first_name} ${row.last_name}`;
             const idCode = `INV-${String(row.id).padStart(5, "0")}`;
-            const statusDisplay = getStatusDisplay(row.application_status);
-            const dateFormatted = new Date(row.created_at).toLocaleDateString("en-US", {
-              month: "short",
-              day: "numeric",
-              year: "numeric",
-            });
 
             return (
-              <tr
-                key={row.id}
-                style={{
-                  borderBottom: "1px solid var(--border-subtle)",
-                  background: i % 2 === 0 ? "transparent" : "rgba(255,255,255,0.01)",
-                  transition: "background 0.12s ease",
-                }}
-                onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLTableRowElement).style.background =
-                    "var(--bg-hover)";
-                }}
-                onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLTableRowElement).style.background =
-                    i % 2 === 0 ? "transparent" : "rgba(255,255,255,0.01)";
-                }}
-              >
-                {/* Candidate Name */}
-                <td style={COL_STYLES}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <tr key={row.id} className="hover:bg-slate-50/70 transition-colors group">
+                <td className="py-3 px-5">
+                  <div className="flex items-center gap-3">
                     <Avatar name={displayName} />
-                    <div style={{ minWidth: 0 }}>
-                      <div
-                        style={{
-                          fontWeight: 500,
-                          fontSize: 13,
-                          color: "var(--text-primary)",
-                          whiteSpace: "nowrap",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                        }}
-                      >
+                    <div>
+                      <div className="text-sm font-bold text-slate-900 group-hover:text-blue-600 transition-colors">
                         {displayName}
                       </div>
-                      <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
+                      <div className="text-xs text-slate-500 font-medium">
                         {idCode}
                       </div>
                     </div>
                   </div>
                 </td>
-
-                <td style={COL_STYLES}>
-                  <StatusBadge
-                    variant={statusDisplay.variant}
-                    label={statusDisplay.label}
-                  />
+                <td className="py-3 px-5">
+                  <StatusBadge pipeline_stage={row.pipeline_stage} decision_status={row.decision_status} form_status={row.form_status} />
                 </td>
-
-                <td style={{ ...COL_STYLES, textAlign: "center" }}>
-                  <span style={{ color: "var(--text-muted)" }}>—</span>
+                <td className="py-3 px-5 text-center">
+                  <AiScore score={row.drive_score} />
                 </td>
-
-                <td style={{ ...COL_STYLES, textAlign: "center" }}>
-                  <span style={{ color: "var(--text-muted)" }}>—</span>
+                <td className="py-3 px-5 text-center">
+                  <MotivationScore val={row.drive_total_strong} />
                 </td>
-
-                <td style={COL_STYLES}>
-                   <span style={{ color: "var(--text-muted)" }}>—</span>
+                <td className="py-3 px-5">
+                  <PriorityBadge status={row.decision_status} />
                 </td>
-
-                <td style={COL_STYLES}>
-                  <DocumentStatusCell raw={row} />
+                <td className="py-3 px-5">
+                  {/* DocStatus from files requires Detail type, in Summary we skip it or show partial */}
+                  <DocStatus />
                 </td>
-
-                <td style={{ ...COL_STYLES, color: "var(--text-secondary)" }}>
-                  {dateFormatted}
+                <td className="py-3 px-5 text-sm text-slate-500 whitespace-nowrap">
+                  {dateStr}
                 </td>
-
-                <td style={{ ...COL_STYLES, textAlign: "center" }}>
-                  <div style={{ display: "flex", gap: 6, justifyContent: "center", alignItems: "center" }}>
+                <td className="py-3 px-5">
+                  <div className="flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button className="px-3 py-1.5 text-xs font-bold bg-white border border-gray-200 text-gray-600 rounded-full hover:bg-gray-50 transition-colors shadow-sm">
+                      Send
+                    </button>
                     <Link
-                      href={`/candidates/${row.id}`}
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        padding: "6px 14px",
-                        borderRadius: 8,
-                        background: "var(--accent)",
-                        color: "#0A0A0A",
-                        fontSize: 12,
-                        fontWeight: 600,
-                        textDecoration: "none",
-                        whiteSpace: "nowrap",
-                        transition: "background 0.15s ease",
-                      }}
+                      href={rowHref}
+                      className="px-3.5 py-1.5 text-xs font-bold bg-[#84CC16] text-white rounded-full hover:bg-[#72b513] transition-colors shadow-sm whitespace-nowrap block"
                     >
                       Open Profile
                     </Link>

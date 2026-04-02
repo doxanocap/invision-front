@@ -20,13 +20,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={inter.variable}>
-      <body>
-        <div style={{ display: "flex", minHeight: "100vh", background: "var(--bg-primary)" }}>
-          <Sidebar />
-          <main style={{ flex: 1, overflow: "auto" }}>
-            {children}
-          </main>
-        </div>
+      <body className="flex min-h-screen font-sans antialiased bg-[#F8F9F0] text-slate-900">
+        <Sidebar />
+        <main className="flex-1 overflow-auto">
+          {children}
+        </main>
       </body>
     </html>
   );

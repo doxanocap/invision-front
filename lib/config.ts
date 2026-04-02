@@ -1,6 +1,2 @@
-export function getApiBaseUrl(): string {
-  if (typeof process !== "undefined" && process.env.API_BASE_URL) {
-    return process.env.API_BASE_URL;
-  }
-  return "http://192.168.1.109:8000";
-}
+export const API_BASE_URL = process.env.API_BASE_URL || "http://192.168.1.105:8000";
+export const FRONTEND_URL = process.env.FRONT_BASE_URL || "http://localhost:3000";
